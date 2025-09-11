@@ -139,6 +139,21 @@
                     <div class="chat-info">
                         <p id="connection-status">Waiting for connection...</p>
                         <div id="participants-list"></div>
+                        <div id="debug-info" style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.1); border-radius: 5px; font-size: 0.8rem;">
+                            <strong>Debug Info:</strong><br>
+                            <span id="debug-websocket">Socket.IO: Testing...</span><br>
+                            <span id="debug-signaling">Signaling: localStorage</span><br>
+                            <span id="debug-room">Room: -</span>
+                        </div>
+                        <div id="manual-connection" style="margin-top: 10px; padding: 10px; background: rgba(255,193,7,0.1); border-radius: 5px; font-size: 0.8rem; display: none;">
+                            <strong>⚠️ Socket.IO Connection Failed</strong><br>
+                            <p>For cross-device communication, you need a Socket.IO server. Try:</p>
+                            <ol>
+                                <li>Check browser console for Socket.IO errors</li>
+                                <li>Make sure the server is running</li>
+                                <li>Try refreshing the page</li>
+                            </ol>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -149,6 +164,7 @@
         </footer>
     </div>
 
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

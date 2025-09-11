@@ -1,9 +1,8 @@
-// Simple WebSocket signaling server for LocalChat
+// Socket.IO signaling server for LocalChat
 // Run with: node simple-signaling-server.js
 
-const WebSocket = require('ws');
+const { Server } = require('socket.io');
 const http = require('http');
-const url = require('url');
 const path = require('path');
 const fs = require('fs');
 
@@ -12,6 +11,9 @@ const server = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    // Log all requests for debugging
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - IP: ${req.headers['x-forwarded-for'] || req.connection.remoteAddress}`);
     
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
@@ -27,8 +29,54 @@ const server = http.createServer((req, res) => {
             status: 'ok', 
             timestamp: new Date().toISOString(),
             rooms: rooms.size,
-            environment: process.env.NODE_ENV || 'development'
+            environment: process.env.NODE_ENV || 'development',
+            railway: !!process.env.RAILWAY_ENVIRONMENT,
+            port: PORT
         }));
+        return;
+    }
+    
+    // Simple test endpoint
+    if (req.url === '/test') {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>LocalChat Server Test</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+                    .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                    .success { color: #28a745; }
+                    .info { color: #17a2b8; }
+                    .warning { color: #ffc107; }
+                    a { color: #007bff; text-decoration: none; }
+                    a:hover { text-decoration: underline; }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h1 class="success">✅ LocalChat Server is Running!</h1>
+                    <h2>Server Information:</h2>
+                    <p><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
+                    <p><strong>Environment:</strong> ${process.env.NODE_ENV || 'development'}</p>
+                    <p><strong>Railway:</strong> ${process.env.RAILWAY_ENVIRONMENT ? 'Yes ✅' : 'No ❌'}</p>
+                    <p><strong>Port:</strong> ${PORT}</p>
+                    <p><strong>Active Rooms:</strong> ${rooms.size}</p>
+                    <p><strong>Request IP:</strong> ${req.headers['x-forwarded-for'] || req.connection.remoteAddress}</p>
+                    <p><strong>User Agent:</strong> ${req.headers['user-agent']}</p>
+                    
+                    <h2>Test Links:</h2>
+                    <p><a href="/">🏠 Go to LocalChat App</a></p>
+                    <p><a href="/health">🔍 Health Check (JSON)</a></p>
+                    
+                    <h2>If you can see this page:</h2>
+                    <p class="info">✅ The server is accessible and working correctly!</p>
+                    <p class="warning">⚠️ If LocalChat doesn't work, the issue is likely with WebRTC/WebSocket connections.</p>
+                </div>
+            </body>
+            </html>
+        `);
         return;
     }
     
@@ -36,6 +84,13 @@ const server = http.createServer((req, res) => {
     let filePath = '.' + req.url;
     if (filePath === './') {
         filePath = './index.html';
+    }
+    
+    // Add a simple root test endpoint
+    if (req.url === '/ping') {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('PONG - Server is working!');
+        return;
     }
     
     const extname = String(path.extname(filePath)).toLowerCase();
@@ -75,84 +130,85 @@ const server = http.createServer((req, res) => {
     });
 });
 
-const wss = new WebSocket.Server({ server });
-
-const rooms = new Map(); // roomId -> Set of WebSocket connections
-
-wss.on('connection', (ws, req) => {
-    const query = url.parse(req.url, true).query;
-    const roomId = query.roomId;
-    const userId = query.userId || `user_${Math.random().toString(36).substring(2, 15)}`;
-    
-    console.log(`User ${userId} connected to room ${roomId}`);
-    
-    // Add user to room
-    if (!rooms.has(roomId)) {
-        rooms.set(roomId, new Set());
+// Initialize Socket.IO server
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
     }
-    rooms.get(roomId).add(ws);
+});
+
+const rooms = new Map(); // roomId -> Set of socket connections
+
+io.on('connection', (socket) => {
+    console.log(`Socket connected: ${socket.id}`);
     
-    // Send user ID back to client
-    ws.send(JSON.stringify({
-        type: 'user-id',
-        userId: userId
-    }));
-    
-    // Notify other users in the room
-    rooms.get(roomId).forEach(client => {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({
-                type: 'user-joined',
-                userId: userId
-            }));
-        }
-    });
-    
-    ws.on('message', (message) => {
-        try {
-            const data = JSON.parse(message);
-            console.log(`Message from ${userId} in room ${roomId}:`, data.type);
-            
-            // Broadcast message to all other users in the room
-            rooms.get(roomId).forEach(client => {
-                if (client !== ws && client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify({
-                        ...data,
-                        from: userId
-                    }));
-                }
-            });
-        } catch (error) {
-            console.error('Error parsing message:', error);
-        }
-    });
-    
-    ws.on('close', () => {
-        console.log(`User ${userId} disconnected from room ${roomId}`);
+    // Handle joining a room
+    socket.on('join-room', (data) => {
+        const { roomId, userId } = data;
+        const user = userId || `user_${Math.random().toString(36).substring(2, 15)}`;
         
-        // Remove user from room
-        if (rooms.has(roomId)) {
-            rooms.get(roomId).delete(ws);
-            
-            // Notify other users
-            rooms.get(roomId).forEach(client => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify({
-                        type: 'user-left',
-                        userId: userId
-                    }));
+        console.log(`User ${user} joining room ${roomId}`);
+        
+        // Join the socket room
+        socket.join(roomId);
+        
+        // Add user to our room tracking
+        if (!rooms.has(roomId)) {
+            rooms.set(roomId, new Set());
+        }
+        rooms.get(roomId).add(socket);
+        
+        // Store user info on socket
+        socket.userId = user;
+        socket.roomId = roomId;
+        
+        // Send user ID back to client
+        socket.emit('user-id', { userId: user });
+        
+        // Notify other users in the room
+        socket.to(roomId).emit('user-joined', { userId: user });
+        
+        console.log(`User ${user} joined room ${roomId}. Room now has ${rooms.get(roomId).size} users.`);
+    });
+    
+    // Handle signaling messages
+    socket.on('signaling-message', (data) => {
+        const { type, payload } = data;
+        console.log(`Signaling message from ${socket.userId}:`, type);
+        
+        // Broadcast to other users in the same room
+        socket.to(socket.roomId).emit('signaling-message', {
+            type,
+            payload,
+            from: socket.userId
+        });
+    });
+    
+    // Handle disconnection
+    socket.on('disconnect', () => {
+        console.log(`Socket disconnected: ${socket.id} (User: ${socket.userId})`);
+        
+        if (socket.roomId) {
+            // Remove from room tracking
+            if (rooms.has(socket.roomId)) {
+                rooms.get(socket.roomId).delete(socket);
+                
+                // Notify other users
+                socket.to(socket.roomId).emit('user-left', { userId: socket.userId });
+                
+                // Clean up empty rooms
+                if (rooms.get(socket.roomId).size === 0) {
+                    rooms.delete(socket.roomId);
+                    console.log(`Room ${socket.roomId} deleted (empty)`);
                 }
-            });
-            
-            // Clean up empty rooms
-            if (rooms.get(roomId).size === 0) {
-                rooms.delete(roomId);
             }
         }
     });
     
-    ws.on('error', (error) => {
-        console.error(`WebSocket error for user ${userId}:`, error);
+    // Handle errors
+    socket.on('error', (error) => {
+        console.error(`Socket error for ${socket.userId}:`, error);
     });
 });
 
@@ -160,9 +216,10 @@ const PORT = process.env.PORT || 8080;
 const HOST = process.env.HOST || '0.0.0.0';
 
 server.listen(PORT, HOST, () => {
-    console.log(`Signaling server running on ${HOST}:${PORT}`);
-    console.log(`WebSocket endpoint: ws://${HOST}:${PORT}`);
+    console.log(`Socket.IO signaling server running on ${HOST}:${PORT}`);
+    console.log(`Socket.IO endpoint: http://${HOST}:${PORT}`);
     console.log('Server is accessible from anywhere!');
     console.log('Environment:', process.env.NODE_ENV || 'development');
     console.log('Railway deployment detected:', !!process.env.RAILWAY_ENVIRONMENT);
+    console.log('Socket.IO server initialized successfully!');
 });

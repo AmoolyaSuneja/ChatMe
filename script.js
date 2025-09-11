@@ -25,20 +25,52 @@ const rtcConfig = {
 // Simple signaling server simulation using localStorage and polling
 const SIGNALING_INTERVAL = 500; // Check for signals every 500ms
 const ROOM_CLEANUP_INTERVAL = 30000; // Clean up rooms every 30 seconds
-// Auto-detect WebSocket URL based on current domain and protocol
-const WS_SERVER_URL = window.location.protocol === 'https:' ? 
-    `wss://${window.location.host}` : 
-    `ws://${window.location.host}`;
+// Auto-detect Socket.IO URL based on current domain
+const SOCKET_IO_URL = window.location.origin;
 
-console.log('WebSocket URL configured as:', WS_SERVER_URL);
+console.log('=== LocalChat Debug Info ===');
+console.log('Socket.IO URL configured as:', SOCKET_IO_URL);
 console.log('Current location:', window.location.href);
+console.log('Protocol:', window.location.protocol);
+console.log('Host:', window.location.host);
+console.log('User Agent:', navigator.userAgent);
+console.log('============================');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
     setupEventListeners();
     requestLocationPermission();
+    setupCrossTabCommunication();
 });
+
+// Setup cross-tab communication for localStorage fallback
+function setupCrossTabCommunication() {
+    // Listen for messages from other tabs
+    window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'localChatSignal') {
+            const signal = event.data.signal;
+            if (signal.roomId === currentRoom?.id && signal.from !== currentUserId) {
+                console.log('Received cross-tab signal:', signal);
+                handleSignalingMessage(signal);
+            }
+        }
+    });
+    
+    // Listen for storage changes (localStorage events)
+    window.addEventListener('storage', (event) => {
+        if (event.key && event.key.startsWith('signals_') && event.newValue) {
+            const roomId = event.key.replace('signals_', '');
+            if (roomId === currentRoom?.id) {
+                console.log('Storage change detected for room:', roomId);
+                // Trigger a check for new signals
+                setTimeout(() => {
+                    checkForSignalingMessages();
+                }, 100);
+            }
+        }
+    });
+}
 
 // Initialize app
 function initializeApp() {
@@ -363,78 +395,144 @@ function joinNearbyRoom(roomId) {
     }
 }
 
-// WebSocket signaling functions
-function initializeWebSocketSignaling() {
+// Test Socket.IO connection before using it
+async function testSocketIOConnection() {
+    return new Promise((resolve) => {
+        console.log('Testing Socket.IO connection to:', SOCKET_IO_URL);
+        
+        const testSocket = io(SOCKET_IO_URL, {
+            timeout: 5000,
+            forceNew: true
+        });
+        
+        const timeout = setTimeout(() => {
+            console.log('Socket.IO test timeout after 5 seconds');
+            testSocket.disconnect();
+            resolve(false);
+        }, 5000);
+        
+        testSocket.on('connect', () => {
+            console.log('✅ Socket.IO test successful!');
+            clearTimeout(timeout);
+            testSocket.disconnect();
+            resolve(true);
+        });
+        
+        testSocket.on('connect_error', (error) => {
+            console.error('❌ Socket.IO test failed:', error);
+            console.error('Socket.IO URL attempted:', SOCKET_IO_URL);
+            clearTimeout(timeout);
+            resolve(false);
+        });
+        
+        testSocket.on('disconnect', () => {
+            console.log('Socket.IO test disconnected');
+        });
+    });
+}
+
+// Socket.IO signaling functions
+async function initializeSocketIOSignaling() {
     if (!currentRoom) return;
     
     try {
+        // Test Socket.IO connection first
+        const socketIOAvailable = await testSocketIOConnection();
+        
+        if (!socketIOAvailable) {
+            console.log('Socket.IO not available, using localStorage fallback');
+            updateConnectionStatus('Socket.IO unavailable - using localStorage');
+            useWebSocket = false;
+            initializeLocalStorageSignaling();
+            
+            // Show warning to user
+            const warningDiv = document.getElementById('manual-connection');
+            if (warningDiv) {
+                warningDiv.style.display = 'block';
+            }
+            return;
+        }
+        
         // Generate unique user ID
         currentUserId = generateUserId();
         
-        // Connect to WebSocket server
-        socket = new WebSocket(`${WS_SERVER_URL}?roomId=${currentRoom.id}&userId=${currentUserId}`);
+        // Connect to Socket.IO server
+        console.log('Connecting to Socket.IO:', SOCKET_IO_URL);
+        socket = io(SOCKET_IO_URL);
         
-        socket.onopen = () => {
-            console.log('WebSocket connected successfully');
-            console.log('WebSocket URL:', WS_SERVER_URL);
+        socket.on('connect', () => {
+            console.log('Socket.IO connected successfully');
+            console.log('Socket.IO URL:', SOCKET_IO_URL);
             updateConnectionStatus('Connected to signaling server');
-        };
+            updateDebugInfo();
+            
+            // Join the room
+            socket.emit('join-room', {
+                roomId: currentRoom.id,
+                userId: currentUserId
+            });
+        });
         
-        socket.onmessage = (event) => {
-            const message = JSON.parse(event.data);
-            console.log('Received WebSocket message:', message);
-            handleWebSocketMessage(message);
-        };
+        socket.on('user-id', (data) => {
+            console.log('Received user ID:', data.userId);
+            currentUserId = data.userId;
+        });
         
-        socket.onclose = () => {
-            console.log('WebSocket disconnected');
+        socket.on('user-joined', (data) => {
+            console.log('User joined:', data.userId);
+            updateConnectionStatus('User joined! Initiating connection...');
+            setTimeout(() => {
+                initiateConnection();
+            }, 1000);
+        });
+        
+        socket.on('user-left', (data) => {
+            console.log('User left:', data.userId);
+            updateConnectionStatus('User left the room');
+        });
+        
+        socket.on('signaling-message', (data) => {
+            console.log('Received signaling message:', data);
+            handleSocketIOMessage(data);
+        });
+        
+        socket.on('disconnect', () => {
+            console.log('Socket.IO disconnected');
             updateConnectionStatus('Signaling server disconnected');
-        };
+        });
         
-        socket.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            console.error('WebSocket URL attempted:', WS_SERVER_URL);
-            console.error('Current protocol:', window.location.protocol);
+        socket.on('connect_error', (error) => {
+            console.error('Socket.IO connection error:', error);
             updateConnectionStatus('Signaling server error - falling back to localStorage');
             useWebSocket = false;
             initializeLocalStorageSignaling();
-        };
+        });
         
         useWebSocket = true;
         
     } catch (error) {
-        console.error('Failed to initialize WebSocket:', error);
-        updateConnectionStatus('WebSocket failed - using localStorage');
+        console.error('Failed to initialize Socket.IO:', error);
+        updateConnectionStatus('Socket.IO failed - using localStorage');
         useWebSocket = false;
         initializeLocalStorageSignaling();
     }
 }
 
-function handleWebSocketMessage(message) {
-    switch (message.type) {
-        case 'user-id':
-            currentUserId = message.userId;
-            console.log('Assigned user ID:', currentUserId);
-            break;
-        case 'user-joined':
-            console.log('User joined:', message.userId);
-            updateConnectionStatus('User joined! Initiating connection...');
-            setTimeout(() => {
-                initiateConnection();
-            }, 1000);
-            break;
-        case 'user-left':
-            console.log('User left:', message.userId);
-            updateConnectionStatus('User left the room');
-            break;
+function handleSocketIOMessage(data) {
+    const { type, payload, from } = data;
+    
+    switch (type) {
         case 'offer':
-            handleOffer(message.data);
+            handleOffer(payload);
             break;
         case 'answer':
-            handleAnswer(message.data);
+            handleAnswer(payload);
             break;
         case 'ice-candidate':
-            handleIceCandidate(message.data);
+            handleIceCandidate(payload);
+            break;
+        case 'user-joined':
+            handleUserJoined(payload);
             break;
     }
 }
@@ -464,8 +562,8 @@ function initializeLocalStorageSignaling() {
 }
 
 function initializeSignaling() {
-    // Try WebSocket first, fallback to localStorage
-    initializeWebSocketSignaling();
+    // Try Socket.IO first, fallback to localStorage
+    initializeSocketIOSignaling();
 }
 
 function generateUserId() {
@@ -507,11 +605,16 @@ function checkForSignalingMessages() {
 function sendSignalingMessage(message) {
     if (!currentRoom) return;
     
-    if (useWebSocket && socket && socket.readyState === WebSocket.OPEN) {
-        // Use WebSocket signaling
-        sendWebSocketMessage(message);
+    if (useWebSocket && socket && socket.connected) {
+        // Use Socket.IO signaling
+        console.log('📡 Sending via Socket.IO:', message.type);
+        socket.emit('signaling-message', {
+            type: message.type,
+            payload: message.data
+        });
     } else {
-        // Use localStorage signaling (fallback)
+        // Use localStorage signaling (fallback) - but this won't work cross-device
+        console.log('⚠️ Socket.IO not available, using localStorage (limited to same device)');
         const signals = JSON.parse(localStorage.getItem(`signals_${currentRoom.id}`) || '[]');
         const userId = localStorage.getItem('currentUserId') || currentUserId;
         
@@ -519,13 +622,27 @@ function sendSignalingMessage(message) {
             ...message,
             from: userId,
             timestamp: Date.now(),
-            processed: false
+            processed: false,
+            roomId: currentRoom.id
         };
         
         signals.push(newSignal);
         localStorage.setItem(`signals_${currentRoom.id}`, JSON.stringify(signals));
         
-        console.log('Sent localStorage signal:', newSignal);
+        console.log('📝 Sent localStorage signal:', newSignal);
+        
+        // Also try to broadcast to other tabs/windows
+        try {
+            window.postMessage({
+                type: 'localChatSignal',
+                signal: newSignal
+            }, '*');
+        } catch (e) {
+            console.log('Could not broadcast to other tabs:', e);
+        }
+        
+        // Show warning to user
+        updateConnectionStatus('⚠️ Socket.IO unavailable - connection limited to same device');
     }
 }
 
@@ -943,6 +1060,16 @@ function endCall() {
 function updateConnectionStatus(message) {
     document.getElementById('connection-status').textContent = message;
     console.log('Connection status:', message);
+}
+
+function updateDebugInfo() {
+    const socketStatus = useWebSocket ? 'Connected' : 'Failed/Using localStorage';
+    const signalingType = useWebSocket ? 'Socket.IO' : 'localStorage';
+    const roomInfo = currentRoom ? `${currentRoom.id} (${currentRoom.name})` : 'None';
+    
+    document.getElementById('debug-websocket').textContent = `Socket.IO: ${socketStatus}`;
+    document.getElementById('debug-signaling').textContent = `Signaling: ${signalingType}`;
+    document.getElementById('debug-room').textContent = `Room: ${roomInfo}`;
 }
 
 // Debug functions removed for cleaner public interface

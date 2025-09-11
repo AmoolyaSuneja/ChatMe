@@ -25,9 +25,13 @@ const rtcConfig = {
 // Simple signaling server simulation using localStorage and polling
 const SIGNALING_INTERVAL = 500; // Check for signals every 500ms
 const ROOM_CLEANUP_INTERVAL = 30000; // Clean up rooms every 30 seconds
+// Auto-detect WebSocket URL based on current domain and protocol
 const WS_SERVER_URL = window.location.protocol === 'https:' ? 
     `wss://${window.location.host}` : 
-    `ws://${window.location.host}`; // Auto-detect WebSocket URL based on current domain
+    `ws://${window.location.host}`;
+
+console.log('WebSocket URL configured as:', WS_SERVER_URL);
+console.log('Current location:', window.location.href);
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -371,7 +375,8 @@ function initializeWebSocketSignaling() {
         socket = new WebSocket(`${WS_SERVER_URL}?roomId=${currentRoom.id}&userId=${currentUserId}`);
         
         socket.onopen = () => {
-            console.log('WebSocket connected');
+            console.log('WebSocket connected successfully');
+            console.log('WebSocket URL:', WS_SERVER_URL);
             updateConnectionStatus('Connected to signaling server');
         };
         
@@ -388,6 +393,8 @@ function initializeWebSocketSignaling() {
         
         socket.onerror = (error) => {
             console.error('WebSocket error:', error);
+            console.error('WebSocket URL attempted:', WS_SERVER_URL);
+            console.error('Current protocol:', window.location.protocol);
             updateConnectionStatus('Signaling server error - falling back to localStorage');
             useWebSocket = false;
             initializeLocalStorageSignaling();

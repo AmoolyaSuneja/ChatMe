@@ -8,6 +8,30 @@ const path = require('path');
 const fs = require('fs');
 
 const server = http.createServer((req, res) => {
+    // Add CORS headers for Railway deployment
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+    }
+    
+    // Handle health check endpoint
+    if (req.url === '/health' || req.url === '/healthcheck') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+            status: 'ok', 
+            timestamp: new Date().toISOString(),
+            rooms: rooms.size,
+            environment: process.env.NODE_ENV || 'development'
+        }));
+        return;
+    }
+    
     // Serve static files
     let filePath = '.' + req.url;
     if (filePath === './') {
@@ -133,8 +157,12 @@ wss.on('connection', (ws, req) => {
 });
 
 const PORT = process.env.PORT || 8080;
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Signaling server running on port ${PORT}`);
-    console.log(`WebSocket endpoint: ws://localhost:${PORT}`);
+const HOST = process.env.HOST || '0.0.0.0';
+
+server.listen(PORT, HOST, () => {
+    console.log(`Signaling server running on ${HOST}:${PORT}`);
+    console.log(`WebSocket endpoint: ws://${HOST}:${PORT}`);
     console.log('Server is accessible from anywhere!');
+    console.log('Environment:', process.env.NODE_ENV || 'development');
+    console.log('Railway deployment detected:', !!process.env.RAILWAY_ENVIRONMENT);
 });

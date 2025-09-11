@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalChat Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+        .error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        .success {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #log {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            font-family: monospace;
+            height: 200px;
+            overflow-y: scroll;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>LocalChat Debug Test</h1>
+    
+    <div class="test-section">
+        <h3>🔧 Debug Tools</h3>
+        <button onclick="testLocalStorage()">Test localStorage</button>
+        <button onclick="testLocation()">Test Location</button>
+        <button onclick="testRoomCreation()">Test Room Creation</button>
+        <button onclick="testSignaling()">Test Signaling</button>
+        <button onclick="clearAllData()">Clear All Data</button>
+    </div>
+    
+    <div class="test-section">
+        <h3>📊 Current Status</h3>
+        <div id="status"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>📝 Debug Log</h3>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateStatus() {
+            const statusDiv = document.getElementById('status');
+            const location = localStorage.getItem('userLocation');
+            const rooms = JSON.parse(localStorage.getItem('localChatRooms') || '[]');
+            const signals = Object.keys(localStorage).filter(key => key.startsWith('signals_'));
+            
+            statusDiv.innerHTML = `
+                <p><strong>Location:</strong> ${location ? 'Available' : 'Not available'}</p>
+                <p><strong>Rooms:</strong> ${rooms.length}</p>
+                <p><strong>Signal Keys:</strong> ${signals.length}</p>
+                <p><strong>Current User ID:</strong> ${localStorage.getItem('currentUserId') || 'None'}</p>
+            `;
+        }
+        
+        function testLocalStorage() {
+            log('Testing localStorage...');
+            try {
+                localStorage.setItem('test', 'value');
+                const value = localStorage.getItem('test');
+                localStorage.removeItem('test');
+                if (value === 'value') {
+                    log('✅ localStorage is working');
+                } else {
+                    log('❌ localStorage test failed');
+                }
+            } catch (error) {
+                log('❌ localStorage error: ' + error.message);
+            }
+            updateStatus();
+        }
+        
+        function testLocation() {
+            log('Testing location access...');
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const location = {
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude
+                        };
+                        localStorage.setItem('userLocation', JSON.stringify(location));
+                        log('✅ Location obtained: ' + JSON.stringify(location));
+                        updateStatus();
+                    },
+                    (error) => {
+                        log('❌ Location error: ' + error.message);
+                    }
+                );
+            } else {
+                log('❌ Geolocation not supported');
+            }
+        }
+        
+        function testRoomCreation() {
+            log('Testing room creation...');
+            const testRoom = {
+                id: 'DEBUG123',
+                name: 'Debug Test Room',
+                radius: 5,
+                allowDiscovery: true,
+                location: JSON.parse(localStorage.getItem('userLocation') || '{"latitude": 0, "longitude": 0}'),
+                createdAt: Date.now(),
+                participants: [],
+                creatorId: 'debug_user'
+            };
+            
+            const rooms = JSON.parse(localStorage.getItem('localChatRooms') || '[]');
+            const filteredRooms = rooms.filter(room => room.id !== 'DEBUG123');
+            filteredRooms.push(testRoom);
+            localStorage.setItem('localChatRooms', JSON.stringify(filteredRooms));
+            
+            log('✅ Test room created: ' + testRoom.id);
+            updateStatus();
+        }
+        
+        function testSignaling() {
+            log('Testing signaling system...');
+            const testSignal = {
+                type: 'test',
+                from: 'debug_user',
+                timestamp: Date.now(),
+                processed: false
+            };
+            
+            const signals = JSON.parse(localStorage.getItem('signals_DEBUG123') || '[]');
+            signals.push(testSignal);
+            localStorage.setItem('signals_DEBUG123', JSON.stringify(signals));
+            
+            log('✅ Test signal sent');
+            
+            // Test receiving
+            setTimeout(() => {
+                const receivedSignals = JSON.parse(localStorage.getItem('signals_DEBUG123') || '[]');
+                const testSignalReceived = receivedSignals.find(s => s.type === 'test');
+                if (testSignalReceived) {
+                    log('✅ Test signal received');
+                } else {
+                    log('❌ Test signal not received');
+                }
+            }, 100);
+            
+            updateStatus();
+        }
+        
+        function clearAllData() {
+            log('Clearing all data...');
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith('localChat') || key.startsWith('signals_') || key.startsWith('current'))) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            log('✅ Cleared ' + keysToRemove.length + ' items');
+            updateStatus();
+        }
+        
+        // Initialize
+        updateStatus();
+        log('Debug test page loaded');
+    </script>
+</body>
+</html>

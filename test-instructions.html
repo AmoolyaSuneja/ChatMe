@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalChat - Testing Instructions</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-step {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+        .important {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+        }
+        .success {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+        code {
+            background: #e9ecef;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>LocalChat - Testing Instructions</h1>
+    
+    <div class="test-step important">
+        <h3>⚠️ Important: Testing Requirements</h3>
+        <p>To test the connection functionality, you need <strong>two different browser windows/tabs</strong> or <strong>two different devices</strong> on the same network.</p>
+    </div>
+
+    <h2>Testing Steps</h2>
+
+    <div class="test-step">
+        <h3>Step 1: Open Two Browser Windows</h3>
+        <p>Open <code>index.html</code> in two separate browser windows or tabs. This simulates two different users.</p>
+    </div>
+
+    <div class="test-step">
+        <h3>Step 2: Allow Location Access</h3>
+        <p>In both windows, allow location access when prompted. This is required for room discovery.</p>
+    </div>
+
+    <div class="test-step">
+        <h3>Step 3: Create a Room (User 1)</h3>
+        <p>In the first window:</p>
+        <ol>
+            <li>Click "Create Room"</li>
+            <li>Enter a room name (e.g., "Test Room")</li>
+            <li>Set radius to 5 km</li>
+            <li>Make sure "Allow nearby users to discover this room" is checked</li>
+            <li>Click "Start Room"</li>
+        </ol>
+        <p>You should see your local video and the room code.</p>
+    </div>
+
+    <div class="test-step">
+        <h3>Step 4: Join the Room (User 2)</h3>
+        <p>In the second window:</p>
+        <ol>
+            <li>Click "Join Room"</li>
+            <li>Enter the room code from User 1</li>
+            <li>Click "Join Room"</li>
+        </ol>
+        <p>Both users should now see each other's video!</p>
+    </div>
+
+    <div class="test-step success">
+        <h3>✅ Expected Result</h3>
+        <p>Both users should be connected and see each other's video streams. The connection status should show "Connected! Video should be visible now."</p>
+    </div>
+
+    <div class="test-step important">
+        <h3>🔧 Debugging Tools</h3>
+        <p>If videos are not showing:</p>
+        <ol>
+            <li>Click the <strong>"Debug"</strong> button in the video chat interface</li>
+            <li>Check the browser console (F12 → Console) for detailed logs</li>
+            <li>Look for connection state messages and video stream information</li>
+            <li>Ensure camera/microphone permissions are granted</li>
+        </ol>
+    </div>
+
+    <h2>Testing Radius-Based Discovery</h2>
+
+    <div class="test-step">
+        <h3>Alternative Method: Use Test Room</h3>
+        <p>In the second window:</p>
+        <ol>
+            <li>Click the "Test Room" button on the welcome screen</li>
+            <li>This creates a test room within your radius</li>
+            <li>Click "Join" next to the test room in the nearby rooms list</li>
+        </ol>
+    </div>
+
+    <h2>Troubleshooting</h2>
+
+    <div class="test-step important">
+        <h3>If Videos Don't Show:</h3>
+        <ul>
+            <li><strong>Check Console:</strong> Open F12 → Console and look for error messages</li>
+            <li><strong>Use Debug Button:</strong> Click the "Debug" button in the video chat interface</li>
+            <li><strong>Check Permissions:</strong> Ensure camera/microphone permissions are granted</li>
+            <li><strong>Browser Compatibility:</strong> Try Chrome or Firefox (Safari may have issues)</li>
+            <li><strong>Network Issues:</strong> Make sure both windows are on the same device/network</li>
+            <li><strong>Restart:</strong> Try refreshing both windows and starting over</li>
+        </ul>
+    </div>
+
+    <div class="test-step">
+        <h3>Browser Compatibility</h3>
+        <p>This app works best with:</p>
+        <ul>
+            <li>Chrome (recommended)</li>
+            <li>Firefox</li>
+            <li>Edge</li>
+            <li>Safari (may have limitations)</li>
+        </ul>
+    </div>
+
+    <h2>What Was Fixed</h2>
+
+    <div class="test-step success">
+        <h3>✅ Issues Resolved:</h3>
+        <ul>
+            <li><strong>Real User Connections:</strong> Implemented proper WebRTC signaling between users</li>
+            <li><strong>Room Discovery:</strong> Fixed radius-based room discovery and sharing</li>
+            <li><strong>Cross-Browser Support:</strong> Rooms can now be shared between different browser instances</li>
+            <li><strong>Signaling System:</strong> Added proper offer/answer/ICE candidate exchange</li>
+            <li><strong>Connection Management:</strong> Proper cleanup and state management</li>
+        </ul>
+    </div>
+
+    <p><strong>Note:</strong> This is a local testing setup. In a production environment, you would need a proper signaling server (like Socket.IO, WebSocket, or Firebase) instead of localStorage-based signaling.</p>
+</body>
+</html>

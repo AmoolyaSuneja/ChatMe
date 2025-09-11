@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalChat - Network Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .info-box {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #e8f5e8;
+            border-color: #4caf50;
+        }
+        .warning {
+            background: #fff3e0;
+            border-color: #ff9800;
+        }
+        .url-box {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            margin: 10px 0;
+            word-break: break-all;
+        }
+        button {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1976d2;
+        }
+        .step {
+            background: #f9f9f9;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌐 LocalChat Network Test</h1>
+    
+    <div class="info-box success">
+        <h3>✅ Your Computer's Network Info</h3>
+        <p><strong>IP Address:</strong> <span class="url-box">10.111.236.197</span></p>
+        <p><strong>Web Server:</strong> <span class="url-box">http://10.111.236.197:8000</span></p>
+        <p><strong>Signaling Server:</strong> <span class="url-box">ws://10.111.236.197:8080</span></p>
+    </div>
+
+    <div class="step">
+        <h3>📱 Testing with Different Devices</h3>
+        <p>To test with a different device (phone, tablet, another computer):</p>
+        
+        <h4>Step 1: Start the Servers</h4>
+        <p>Make sure both servers are running on your computer:</p>
+        <ul>
+            <li>Web server: <code>python -m http.server 8000</code></li>
+            <li>Signaling server: <code>npm start</code></li>
+        </ul>
+        
+        <h4>Step 2: Connect from Another Device</h4>
+        <p>On your other device, open a web browser and go to:</p>
+        <div class="url-box">http://10.111.236.197:8000</div>
+        
+        <h4>Step 3: Test the Connection</h4>
+        <ol>
+            <li>Create a room on your computer</li>
+            <li>Join the same room from your other device using the room code</li>
+            <li>Both devices should see each other's video!</li>
+        </ol>
+    </div>
+
+    <div class="info-box warning">
+        <h3>⚠️ Important Notes</h3>
+        <ul>
+            <li><strong>Same Network:</strong> Both devices must be on the same WiFi network</li>
+            <li><strong>Firewall:</strong> Windows Firewall might block connections - allow access if prompted</li>
+            <li><strong>Ports:</strong> Make sure ports 8000 and 8080 are not blocked</li>
+            <li><strong>HTTPS:</strong> Some browsers require HTTPS for camera access - use Chrome for best results</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h3>🔧 Troubleshooting</h3>
+        
+        <h4>If the other device can't connect:</h4>
+        <ul>
+            <li>Check that both devices are on the same WiFi network</li>
+            <li>Try disabling Windows Firewall temporarily</li>
+            <li>Make sure the servers are running on your computer</li>
+            <li>Check the browser console for error messages</li>
+        </ul>
+        
+        <h4>If video doesn't show:</h4>
+        <ul>
+            <li>Allow camera/microphone permissions</li>
+            <li>Try using Chrome browser</li>
+            <li>Check the browser console for WebRTC errors</li>
+            <li>Make sure the signaling server is accessible</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h3>🌍 For Internet Access (Production)</h3>
+        <p>To make it accessible from anywhere on the internet:</p>
+        <ol>
+            <li>Deploy the signaling server to a cloud service (Heroku, Railway, etc.)</li>
+            <li>Update the WebSocket URL in the code to your server's domain</li>
+            <li>Deploy the web app to a hosting service</li>
+        </ol>
+        
+        <p><strong>Example cloud deployment:</strong></p>
+        <div class="url-box">https://your-app.herokuapp.com</div>
+    </div>
+
+    <div style="text-align: center; margin-top: 30px;">
+        <button onclick="window.open('http://10.111.236.197:8000', '_blank')">
+            🚀 Open LocalChat
+        </button>
+        <button onclick="window.open('http://localhost:8000', '_blank')">
+            🏠 Open Local (Same Device)
+        </button>
+    </div>
+
+    <script>
+        // Test WebSocket connection
+        function testWebSocket() {
+            const ws = new WebSocket('ws://10.111.236.197:8080');
+            
+            ws.onopen = () => {
+                console.log('✅ WebSocket connection successful!');
+                alert('✅ WebSocket connection successful!');
+                ws.close();
+            };
+            
+            ws.onerror = (error) => {
+                console.error('❌ WebSocket connection failed:', error);
+                alert('❌ WebSocket connection failed. Make sure the signaling server is running.');
+            };
+        }
+        
+        // Auto-test WebSocket on page load
+        window.addEventListener('load', () => {
+            setTimeout(testWebSocket, 1000);
+        });
+    </script>
+</body>
+</html>

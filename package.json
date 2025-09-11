@@ -1,0 +1,19 @@
+{
+  "name": "localchat",
+  "version": "1.0.0",
+  "description": "Local video chat application with WebRTC",
+  "main": "simple-signaling-server.js",
+  "scripts": {
+    "start": "node simple-signaling-server.js",
+    "dev": "node simple-signaling-server.js"
+  },
+  "dependencies": {
+    "ws": "^8.14.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["webrtc", "video-chat", "signaling"],
+  "author": "",
+  "license": "MIT"
+}

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LocalChat - Video Chat with Nearby Users</title>
+    <title>ChatMe - Video Chat with Nearby Users</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
 <body>
     <div class="container">
         <header class="header">
-            <h1><i class="fas fa-video"></i> LocalChat</h1>
+            <h1><i class="fas fa-comments"></i> ChatMe</h1>
             <p>Connect with people nearby through video chat</p>
         </header>
 
@@ -45,7 +45,7 @@
                                     <i class="fas fa-sync-alt"></i> Refresh
                                 </button>
                                 <button id="test-room-btn" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.8rem;" onclick="createTestRoom()">
-                                    <i class="fas fa-plus"></i> Test Room
+                                    <i class="fas fa-flask"></i> Create Test Room
                                 </button>
                             </div>
                         </div>
@@ -139,22 +139,6 @@
                     <div class="chat-info">
                         <p id="connection-status">Waiting for connection...</p>
                         <div id="participants-list"></div>
-                        <div id="debug-info" style="margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.1); border-radius: 5px; font-size: 0.8rem;">
-                            <strong>Debug Info:</strong><br>
-                            <span id="debug-websocket">Socket.IO: Testing...</span><br>
-                            <span id="debug-signaling">Signaling: localStorage</span><br>
-                            <span id="debug-room">Room: -</span>
-                        </div>
-                        <div id="manual-connection" style="margin-top: 10px; padding: 10px; background: rgba(255,193,7,0.1); border-radius: 5px; font-size: 0.8rem; display: none;">
-                            <strong>⚠️ Socket.IO Connection Failed</strong><br>
-                            <p>For cross-device communication, you need a Socket.IO server. Try:</p>
-                            <ol>
-                                <li>Check browser console for Socket.IO errors</li>
-                                <li>Make sure the server is running</li>
-                                <li>Try refreshing the page</li>
-                                <li>Or add your server URL: <input type="text" id="manual-server-url" placeholder="https://your-server.com" style="margin: 5px; padding: 5px; border: 1px solid #ccc; border-radius: 3px; width: 200px;"> <button onclick="setManualServerUrl()" style="padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">Set</button></li>
-                            </ol>
-                        </div>
                     </div>
                 </div>
             </div>

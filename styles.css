@@ -6,7 +6,7 @@
 
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #0a0a0a;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #e5e5e5;
     min-height: 100vh;
     overflow-x: hidden;
@@ -22,9 +22,9 @@ body::before {
     width: 100%;
     height: 100%;
     background: 
-        radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.03) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.03) 0%, transparent 50%),
-        radial-gradient(circle at 40% 60%, rgba(236, 72, 153, 0.02) 0%, transparent 50%);
+        radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 40% 60%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
     z-index: -1;
 }
 
@@ -44,14 +44,15 @@ body::before {
 }
 
 .header h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
+    font-size: 3rem;
+    font-weight: 800;
     margin-bottom: 0.5rem;
-    background: linear-gradient(135deg, #ffffff 0%, #a1a1aa 100%);
+    background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 50%, #e0e0e0 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     letter-spacing: -0.02em;
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 }
 
 .header p {
@@ -92,17 +93,18 @@ body::before {
 
 /* Cards */
 .welcome-card, .room-card {
-    background: rgba(15, 15, 15, 0.8);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 24px;
     padding: 2.5rem;
     backdrop-filter: blur(20px);
     box-shadow: 
-        0 20px 40px rgba(0, 0, 0, 0.3),
-        0 0 0 1px rgba(255, 255, 255, 0.05);
+        0 25px 50px rgba(0, 0, 0, 0.15),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
     text-align: center;
     position: relative;
     transition: all 0.3s ease;
+    color: #1a1a1a;
 }
 
 .welcome-card:hover, .room-card:hover {
@@ -114,7 +116,7 @@ body::before {
 
 .welcome-card h2, .room-card h2 {
     margin-bottom: 1.5rem;
-    color: #ffffff;
+    color: #1a1a1a;
     font-size: 1.75rem;
     font-weight: 600;
     letter-spacing: -0.01em;
@@ -122,15 +124,15 @@ body::before {
 
 .welcome-card p, .room-card p {
     margin-bottom: 2rem;
-    color: #a1a1aa;
+    color: #4a4a4a;
     line-height: 1.6;
     font-size: 1rem;
 }
 
 /* Location Status */
 .location-status {
-    background: rgba(15, 15, 15, 0.6);
-    border: 1px solid rgba(34, 197, 94, 0.2);
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.3);
     border-radius: 12px;
     padding: 1rem;
     margin: 1.5rem 0;
@@ -140,6 +142,7 @@ body::before {
     gap: 0.75rem;
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
+    color: #1a1a1a;
 }
 
 .location-status:hover {
@@ -238,9 +241,9 @@ body::before {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -343,6 +346,12 @@ body::before {
     margin-bottom: 0.25rem;
 }
 
+.room-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
 .room-distance {
     font-size: 0.85rem;
     color: #71717a;
@@ -354,6 +363,13 @@ body::before {
 .room-distance::before {
     content: '📍';
     font-size: 0.75rem;
+}
+
+.room-code {
+    font-size: 0.8rem;
+    color: #667eea;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
 }
 
 /* Video Chat Screen */

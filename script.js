@@ -118,6 +118,11 @@ function setupCrossTabCommunication() {
 function initializeApp() {
     showScreen('welcome-screen');
     updateLocationStatus('Getting your location...');
+    
+    // Always try to discover nearby rooms on startup
+    setTimeout(() => {
+        discoverNearbyRooms();
+    }, 1000);
 }
 
 // Setup event listeners
@@ -253,7 +258,7 @@ function createRoom() {
     };
     
     // Store room in localStorage for discovery
-    if (allowDiscovery && userLocation) {
+    if (allowDiscovery) {
         const rooms = JSON.parse(localStorage.getItem('localChatRooms') || '[]');
         // Remove any existing room with the same ID
         const filteredRooms = rooms.filter(room => room.id !== roomCode);
@@ -261,6 +266,11 @@ function createRoom() {
         localStorage.setItem('localChatRooms', JSON.stringify(filteredRooms));
         
         console.log('Room created and stored:', currentRoom);
+        
+        // Force update nearby rooms display
+        setTimeout(() => {
+            discoverNearbyRooms();
+        }, 500);
     }
     
     document.getElementById('current-room-name').textContent = roomName;
@@ -387,10 +397,13 @@ function displayNearbyRooms() {
         roomElement.innerHTML = `
             <div class="room-info">
                 <div class="room-name">${room.name}</div>
-                <div class="room-distance">${distance.toFixed(1)} km away</div>
+                <div class="room-details">
+                    <span class="room-distance">${userLocation ? distance.toFixed(1) + ' km away' : 'Location-based'}</span>
+                    <span class="room-code">Code: ${room.id}</span>
+                </div>
             </div>
             <button class="btn btn-primary" onclick="joinNearbyRoom('${room.id}')">
-                Join
+                <i class="fas fa-sign-in-alt"></i> Join
             </button>
         `;
         roomsList.appendChild(roomElement);
@@ -504,11 +517,7 @@ async function initializeSocketIOSignaling() {
             useWebSocket = false;
             initializeLocalStorageSignaling();
             
-            // Show warning to user
-            const warningDiv = document.getElementById('manual-connection');
-            if (warningDiv) {
-                warningDiv.style.display = 'block';
-            }
+            // Connection failed, using localStorage fallback
             return;
         }
         
@@ -523,7 +532,6 @@ async function initializeSocketIOSignaling() {
             console.log('Socket.IO connected successfully');
             console.log('Socket.IO URL:', SOCKET_IO_URL);
             updateConnectionStatus('Connected to signaling server');
-            updateDebugInfo();
             
             // Join the room
             socket.emit('join-room', {
@@ -1124,48 +1132,7 @@ function updateConnectionStatus(message) {
     console.log('Connection status:', message);
 }
 
-function updateDebugInfo() {
-    const socketStatus = useWebSocket ? 'Connected' : 'Failed/Using localStorage';
-    const signalingType = useWebSocket ? 'Socket.IO' : 'localStorage';
-    const roomInfo = currentRoom ? `${currentRoom.id} (${currentRoom.name})` : 'None';
-    
-    document.getElementById('debug-websocket').textContent = `Socket.IO: ${socketStatus}`;
-    document.getElementById('debug-signaling').textContent = `Signaling: ${signalingType}`;
-    document.getElementById('debug-room').textContent = `Room: ${roomInfo}`;
-}
 
-// Manual server URL setting
-function setManualServerUrl() {
-    const urlInput = document.getElementById('manual-server-url');
-    const url = urlInput.value.trim();
-    
-    if (!url) {
-        alert('Please enter a server URL');
-        return;
-    }
-    
-    try {
-        const testUrl = new URL(url);
-        if (testUrl.protocol !== 'http:' && testUrl.protocol !== 'https:') {
-            alert('Please enter a valid HTTP or HTTPS URL');
-            return;
-        }
-        
-        // Update the global Socket.IO URL
-        window.SOCKET_IO_URL = testUrl.origin;
-        console.log('Manual server URL set to:', window.SOCKET_IO_URL);
-        
-        // Try to reconnect
-        if (currentRoom) {
-            updateConnectionStatus('Retrying connection with new server...');
-            initializeSocketIOSignaling();
-        }
-        
-        alert('Server URL updated! The app will try to reconnect.');
-    } catch (e) {
-        alert('Invalid URL format. Please enter a valid URL like https://your-server.com');
-    }
-}
 
 // Debug functions removed for cleaner public interface
 

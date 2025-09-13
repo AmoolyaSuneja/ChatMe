@@ -126,13 +126,13 @@
                     </div>
 
                     <div class="video-grid">
-                        <div class="video-wrapper local">
-                            <video id="local-video" autoplay muted playsinline></video>
-                            <div class="video-label">You</div>
-                        </div>
                         <div class="video-wrapper remote" id="remote-video-container">
                             <video id="remote-video" autoplay playsinline></video>
                             <div class="video-label">Remote User</div>
+                        </div>
+                        <div class="video-wrapper local">
+                            <video id="local-video" autoplay muted playsinline></video>
+                            <div class="video-label">You</div>
                         </div>
                     </div>
 
@@ -152,6 +152,7 @@
                                 <li>Check browser console for Socket.IO errors</li>
                                 <li>Make sure the server is running</li>
                                 <li>Try refreshing the page</li>
+                                <li>Or add your server URL: <input type="text" id="manual-server-url" placeholder="https://your-server.com" style="margin: 5px; padding: 5px; border: 1px solid #ccc; border-radius: 3px; width: 200px;"> <button onclick="setManualServerUrl()" style="padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">Set</button></li>
                             </ol>
                         </div>
                     </div>

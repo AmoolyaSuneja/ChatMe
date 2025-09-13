@@ -38,23 +38,34 @@ const SOCKET_IO_URL = (() => {
         try {
             const u = new URL(override);
             if (u.protocol === 'http:' || u.protocol === 'https:') {
+                console.log('Using override Socket.IO URL:', u.origin);
                 return u.origin;
             }
         } catch (e) {
             console.warn('Invalid signalUrl override, ignoring:', override);
         }
     }
+    
     try {
         const origin = window.location.origin;
+        console.log('Detected origin:', origin);
+        
         if (!origin || origin === 'null' || origin.startsWith('file://')) {
+            console.log('Using localhost fallback for file:// or null origin');
             return 'http://localhost:8080';
         }
+        
         // Some Android/iOS webviews can report 'null' or empty origins
         if (origin === 'file://' || origin === 'about:blank') {
+            console.log('Using localhost fallback for about:blank');
             return 'http://localhost:8080';
         }
+        
+        // For deployed sites, try to use the same origin
+        console.log('Using same origin for Socket.IO:', origin);
         return origin;
     } catch (e) {
+        console.error('Error detecting origin, using localhost:', e);
         return 'http://localhost:8080';
     }
 })();
@@ -168,12 +179,14 @@ function showScreen(screenId) {
 // Location handling
 function requestLocationPermission() {
     if (navigator.geolocation) {
+        console.log('Requesting location permission...');
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 userLocation = {
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude
                 };
+                console.log('Location obtained:', userLocation);
                 updateLocationStatus('Location found! You can now create or join rooms.');
                 enableButtons();
                 discoverNearbyRooms();
@@ -182,6 +195,8 @@ function requestLocationPermission() {
                 console.error('Geolocation error:', error);
                 updateLocationStatus('Location access denied. You can still join rooms with codes.');
                 enableButtons();
+                // Still try to discover rooms in case there are some without location requirements
+                discoverNearbyRooms();
             },
             {
                 enableHighAccuracy: true,
@@ -190,6 +205,7 @@ function requestLocationPermission() {
             }
         );
     } else {
+        console.log('Geolocation not supported');
         updateLocationStatus('Geolocation not supported. You can still join rooms with codes.');
         enableButtons();
     }
@@ -287,11 +303,6 @@ function joinRoomByCode() {
 }
 
 function discoverNearbyRooms() {
-    if (!userLocation) {
-        console.log('No user location available for room discovery');
-        return;
-    }
-    
     // Get rooms from localStorage
     const rooms = JSON.parse(localStorage.getItem('localChatRooms') || '[]');
     const currentTime = Date.now();
@@ -303,27 +314,36 @@ function discoverNearbyRooms() {
     const activeRooms = rooms.filter(room => {
         const isRecent = (currentTime - room.createdAt) < 3600000;
         const allowsDiscovery = room.allowDiscovery;
-        const hasLocation = room.location;
         
-        console.log(`Room ${room.name}: recent=${isRecent}, discovery=${allowsDiscovery}, location=${hasLocation}`);
+        console.log(`Room ${room.name}: recent=${isRecent}, discovery=${allowsDiscovery}`);
         
-        return allowsDiscovery && hasLocation && isRecent;
+        return allowsDiscovery && isRecent;
     });
     
     console.log('Active rooms:', activeRooms.length);
     
-    // Filter rooms by distance
-    nearbyRooms = activeRooms.filter(room => {
-        const distance = calculateDistance(
-            userLocation.latitude, userLocation.longitude,
-            room.location.latitude, room.location.longitude
-        );
-        const withinRadius = distance <= room.radius;
-        
-        console.log(`Room ${room.name}: distance=${distance.toFixed(2)}km, radius=${room.radius}km, within=${withinRadius}`);
-        
-        return withinRadius;
-    });
+    if (!userLocation) {
+        console.log('No user location - showing all discoverable rooms');
+        nearbyRooms = activeRooms;
+    } else {
+        // Filter rooms by distance
+        nearbyRooms = activeRooms.filter(room => {
+            if (!room.location) {
+                console.log(`Room ${room.name}: no location data, including anyway`);
+                return true;
+            }
+            
+            const distance = calculateDistance(
+                userLocation.latitude, userLocation.longitude,
+                room.location.latitude, room.location.longitude
+            );
+            const withinRadius = distance <= room.radius;
+            
+            console.log(`Room ${room.name}: distance=${distance.toFixed(2)}km, radius=${room.radius}km, within=${withinRadius}`);
+            
+            return withinRadius;
+        });
+    }
     
     console.log('Nearby rooms found:', nearbyRooms.length);
     displayNearbyRooms();
@@ -438,15 +458,16 @@ async function testSocketIOConnection() {
         console.log('Testing Socket.IO connection to:', SOCKET_IO_URL);
         
         const testSocket = io(SOCKET_IO_URL, {
-            timeout: 5000,
-            forceNew: true
+            timeout: 8000,
+            forceNew: true,
+            transports: ['websocket', 'polling']
         });
         
         const timeout = setTimeout(() => {
-            console.log('Socket.IO test timeout after 5 seconds');
+            console.log('Socket.IO test timeout after 8 seconds');
             testSocket.disconnect();
             resolve(false);
-        }, 5000);
+        }, 8000);
         
         testSocket.on('connect', () => {
             console.log('✅ Socket.IO test successful!');
@@ -458,6 +479,7 @@ async function testSocketIOConnection() {
         testSocket.on('connect_error', (error) => {
             console.error('❌ Socket.IO test failed:', error);
             console.error('Socket.IO URL attempted:', SOCKET_IO_URL);
+            console.error('Error details:', error.message);
             clearTimeout(timeout);
             resolve(false);
         });
@@ -1110,6 +1132,39 @@ function updateDebugInfo() {
     document.getElementById('debug-websocket').textContent = `Socket.IO: ${socketStatus}`;
     document.getElementById('debug-signaling').textContent = `Signaling: ${signalingType}`;
     document.getElementById('debug-room').textContent = `Room: ${roomInfo}`;
+}
+
+// Manual server URL setting
+function setManualServerUrl() {
+    const urlInput = document.getElementById('manual-server-url');
+    const url = urlInput.value.trim();
+    
+    if (!url) {
+        alert('Please enter a server URL');
+        return;
+    }
+    
+    try {
+        const testUrl = new URL(url);
+        if (testUrl.protocol !== 'http:' && testUrl.protocol !== 'https:') {
+            alert('Please enter a valid HTTP or HTTPS URL');
+            return;
+        }
+        
+        // Update the global Socket.IO URL
+        window.SOCKET_IO_URL = testUrl.origin;
+        console.log('Manual server URL set to:', window.SOCKET_IO_URL);
+        
+        // Try to reconnect
+        if (currentRoom) {
+            updateConnectionStatus('Retrying connection with new server...');
+            initializeSocketIOSignaling();
+        }
+        
+        alert('Server URL updated! The app will try to reconnect.');
+    } catch (e) {
+        alert('Invalid URL format. Please enter a valid URL like https://your-server.com');
+    }
 }
 
 // Debug functions removed for cleaner public interface

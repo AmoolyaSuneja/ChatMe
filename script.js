@@ -76,13 +76,25 @@ console.log('Current location:', window.location.href);
 console.log('Protocol:', window.location.protocol);
 console.log('Host:', window.location.host);
 console.log('User Agent:', navigator.userAgent);
+console.log('Is secure context:', window.isSecureContext);
+console.log('Geolocation supported:', !!navigator.geolocation);
+console.log('Permissions API supported:', !!navigator.permissions);
 console.log('============================');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
     setupEventListeners();
-    requestLocationPermission();
+    
+    // Check if we're in a secure context (required for geolocation)
+    if (window.isSecureContext) {
+        requestLocationPermission();
+        handleLocationPermissionChange();
+    } else {
+        updateLocationStatus('Location access requires HTTPS. You can still join rooms with codes.');
+        enableButtons();
+    }
+    
     setupCrossTabCommunication();
 });
 
@@ -185,6 +197,8 @@ function showScreen(screenId) {
 function requestLocationPermission() {
     if (navigator.geolocation) {
         console.log('Requesting location permission...');
+        updateLocationStatus('Requesting location access...');
+        
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 userLocation = {
@@ -198,14 +212,11 @@ function requestLocationPermission() {
             },
             (error) => {
                 console.error('Geolocation error:', error);
-                updateLocationStatus('Location access denied. You can still join rooms with codes.');
-                enableButtons();
-                // Still try to discover rooms in case there are some without location requirements
-                discoverNearbyRooms();
+                handleLocationError(error);
             },
             {
                 enableHighAccuracy: true,
-                timeout: 10000,
+                timeout: 15000,
                 maximumAge: 300000
             }
         );
@@ -216,8 +227,205 @@ function requestLocationPermission() {
     }
 }
 
+function handleLocationError(error) {
+    let errorMessage = '';
+    let showRetryButton = false;
+    
+    switch(error.code) {
+        case error.PERMISSION_DENIED:
+            errorMessage = 'Location access denied. Click "Retry" to try again or use room codes.';
+            showRetryButton = true;
+            break;
+        case error.POSITION_UNAVAILABLE:
+            errorMessage = 'Location unavailable. Check your device settings and try again.';
+            showRetryButton = true;
+            break;
+        case error.TIMEOUT:
+            errorMessage = 'Location request timed out. Click "Retry" to try again.';
+            showRetryButton = true;
+            break;
+        default:
+            errorMessage = 'Location error occurred. You can still join rooms with codes.';
+            showRetryButton = true;
+            break;
+    }
+    
+    updateLocationStatus(errorMessage);
+    enableButtons();
+    
+    // Add retry button if needed
+    if (showRetryButton) {
+        addLocationRetryButton();
+    }
+    
+    // Still try to discover rooms in case there are some without location requirements
+    discoverNearbyRooms();
+}
+
+function addLocationRetryButton() {
+    const locationStatus = document.querySelector('.location-status');
+    const existingRetryBtn = document.getElementById('location-retry-btn');
+    const existingManualBtn = document.getElementById('location-manual-btn');
+    
+    if (!existingRetryBtn) {
+        const retryButton = document.createElement('button');
+        retryButton.id = 'location-retry-btn';
+        retryButton.className = 'btn btn-secondary';
+        retryButton.style.cssText = 'margin-top: 10px; padding: 8px 16px; font-size: 0.8rem; margin-right: 8px;';
+        retryButton.innerHTML = '<i class="fas fa-redo"></i> Retry Location';
+        retryButton.onclick = retryLocationAccess;
+        
+        locationStatus.appendChild(retryButton);
+    }
+    
+    if (!existingManualBtn) {
+        const manualButton = document.createElement('button');
+        manualButton.id = 'location-manual-btn';
+        manualButton.className = 'btn btn-secondary';
+        manualButton.style.cssText = 'margin-top: 10px; padding: 8px 16px; font-size: 0.8rem;';
+        manualButton.innerHTML = '<i class="fas fa-map-marker-alt"></i> Enter Manually';
+        manualButton.onclick = showManualLocationInput;
+        
+        locationStatus.appendChild(manualButton);
+    }
+}
+
+function showManualLocationInput() {
+    const locationStatus = document.querySelector('.location-status');
+    
+    // Create input form
+    const inputForm = document.createElement('div');
+    inputForm.id = 'manual-location-form';
+    inputForm.style.cssText = 'margin-top: 15px; padding: 15px; background: rgba(10, 10, 10, 0.8); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);';
+    inputForm.innerHTML = `
+        <div style="margin-bottom: 10px;">
+            <label style="display: block; margin-bottom: 5px; font-size: 0.9rem; color: #e5e5e5;">Enter your city or coordinates:</label>
+            <input type="text" id="manual-location-input" placeholder="e.g., New York, NY or 40.7128, -74.0060" 
+                   style="width: 100%; padding: 8px; background: rgba(15, 15, 15, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; color: #e5e5e5; font-size: 0.9rem;">
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button id="submit-manual-location" class="btn btn-primary" style="padding: 8px 16px; font-size: 0.8rem;">
+                <i class="fas fa-check"></i> Use Location
+            </button>
+            <button id="cancel-manual-location" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.8rem;">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
+    `;
+    
+    locationStatus.appendChild(inputForm);
+    
+    // Add event listeners
+    document.getElementById('submit-manual-location').onclick = submitManualLocation;
+    document.getElementById('cancel-manual-location').onclick = cancelManualLocation;
+    
+    // Focus on input
+    document.getElementById('manual-location-input').focus();
+}
+
+function submitManualLocation() {
+    const input = document.getElementById('manual-location-input');
+    const locationText = input.value.trim();
+    
+    if (!locationText) {
+        alert('Please enter a location');
+        return;
+    }
+    
+    // Try to parse as coordinates first
+    const coordMatch = locationText.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
+    if (coordMatch) {
+        const lat = parseFloat(coordMatch[1]);
+        const lon = parseFloat(coordMatch[2]);
+        
+        if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+            userLocation = { latitude: lat, longitude: lon };
+            updateLocationStatus('Manual location set! You can now create or join rooms.');
+            enableButtons();
+            discoverNearbyRooms();
+            cancelManualLocation();
+            return;
+        }
+    }
+    
+    // If not coordinates, try to geocode (simplified - in real app you'd use a geocoding service)
+    alert('Please enter coordinates in format: latitude, longitude (e.g., 40.7128, -74.0060)');
+}
+
+function cancelManualLocation() {
+    const form = document.getElementById('manual-location-form');
+    if (form) {
+        form.remove();
+    }
+}
+
+// Handle location permission changes
+function handleLocationPermissionChange() {
+    // This function can be called when the user changes location permissions
+    // in their browser settings while the app is running
+    if (navigator.permissions) {
+        navigator.permissions.query({name: 'geolocation'}).then(function(result) {
+            console.log('Location permission state:', result.state);
+            
+            if (result.state === 'granted' && !userLocation) {
+                // Permission was granted, try to get location
+                updateLocationStatus('Location permission granted! Getting your location...');
+                requestLocationPermission();
+            } else if (result.state === 'denied' && userLocation) {
+                // Permission was revoked, clear location
+                userLocation = null;
+                updateLocationStatus('Location permission revoked. You can still join rooms with codes.');
+                discoverNearbyRooms();
+            }
+            
+            // Listen for permission changes
+            result.addEventListener('change', function() {
+                console.log('Location permission changed to:', result.state);
+                handleLocationPermissionChange();
+            });
+        }).catch(function(error) {
+            console.log('Permission query not supported:', error);
+        });
+    }
+}
+
+function retryLocationAccess() {
+    const retryBtn = document.getElementById('location-retry-btn');
+    if (retryBtn) {
+        retryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Retrying...';
+        retryBtn.disabled = true;
+    }
+    
+    updateLocationStatus('Retrying location access...');
+    
+    // Remove the retry button temporarily
+    setTimeout(() => {
+        requestLocationPermission();
+        if (retryBtn) {
+            retryBtn.remove();
+        }
+    }, 1000);
+}
+
 function updateLocationStatus(message) {
-    document.getElementById('location-text').textContent = message;
+    const locationText = document.getElementById('location-text');
+    locationText.textContent = message;
+    
+    // Update the icon based on the status
+    const locationIcon = document.querySelector('.location-status i');
+    if (message.includes('found') || message.includes('set')) {
+        locationIcon.className = 'fas fa-map-marker-alt';
+        locationIcon.style.color = '#22c55e';
+    } else if (message.includes('denied') || message.includes('error')) {
+        locationIcon.className = 'fas fa-exclamation-triangle';
+        locationIcon.style.color = '#ef4444';
+    } else if (message.includes('requesting') || message.includes('retrying')) {
+        locationIcon.className = 'fas fa-spinner fa-spin';
+        locationIcon.style.color = '#3b82f6';
+    } else {
+        locationIcon.className = 'fas fa-map-marker-alt';
+        locationIcon.style.color = '#71717a';
+    }
 }
 
 function enableButtons() {

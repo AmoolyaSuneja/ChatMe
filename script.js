@@ -25,8 +25,39 @@ const rtcConfig = {
 // Simple signaling server simulation using localStorage and polling
 const SIGNALING_INTERVAL = 500; // Check for signals every 500ms
 const ROOM_CLEANUP_INTERVAL = 30000; // Clean up rooms every 30 seconds
-// Auto-detect Socket.IO URL based on current domain
-const SOCKET_IO_URL = window.location.origin;
+// Auto-detect Socket.IO URL based on current context (handle file:// and invalid origins)
+// Allow override via query param: ?signalUrl=https://your-railway-app.up.railway.app
+function getQueryParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+}
+
+const SOCKET_IO_URL = (() => {
+    const override = getQueryParam('signalUrl');
+    if (override) {
+        try {
+            const u = new URL(override);
+            if (u.protocol === 'http:' || u.protocol === 'https:') {
+                return u.origin;
+            }
+        } catch (e) {
+            console.warn('Invalid signalUrl override, ignoring:', override);
+        }
+    }
+    try {
+        const origin = window.location.origin;
+        if (!origin || origin === 'null' || origin.startsWith('file://')) {
+            return 'http://localhost:8080';
+        }
+        // Some Android/iOS webviews can report 'null' or empty origins
+        if (origin === 'file://' || origin === 'about:blank') {
+            return 'http://localhost:8080';
+        }
+        return origin;
+    } catch (e) {
+        return 'http://localhost:8080';
+    }
+})();
 
 console.log('=== LocalChat Debug Info ===');
 console.log('Socket.IO URL configured as:', SOCKET_IO_URL);
@@ -266,6 +297,7 @@ function discoverNearbyRooms() {
     const currentTime = Date.now();
     
     console.log('Total rooms found:', rooms.length);
+    console.log('User location:', userLocation);
     
     // Filter out old rooms (older than 1 hour) and rooms not allowing discovery
     const activeRooms = rooms.filter(room => {
@@ -313,9 +345,11 @@ function displayNearbyRooms() {
     const nearbyRoomsDiv = document.getElementById('nearby-rooms');
     
     console.log('Displaying nearby rooms:', nearbyRooms.length);
+    console.log('Nearby rooms data:', nearbyRooms);
     
     if (nearbyRooms.length === 0) {
         nearbyRoomsDiv.style.display = 'none';
+        console.log('No nearby rooms found, hiding nearby rooms section');
         return;
     }
     
@@ -359,11 +393,11 @@ function createTestRoom() {
     const testRoom = {
         id: 'TEST123',
         name: 'Test Room',
-        radius: 10,
+        radius: 50, // Large radius to ensure it shows up
         allowDiscovery: true,
         location: {
-            latitude: userLocation.latitude + (Math.random() - 0.5) * 0.01, // Within ~1km
-            longitude: userLocation.longitude + (Math.random() - 0.5) * 0.01
+            latitude: userLocation.latitude + (Math.random() - 0.5) * 0.001, // Very close
+            longitude: userLocation.longitude + (Math.random() - 0.5) * 0.001
         },
         createdAt: Date.now(),
         participants: [],
@@ -380,9 +414,12 @@ function createTestRoom() {
     localStorage.setItem('localChatRooms', JSON.stringify(filteredRooms));
     
     console.log('Test room created:', testRoom);
-    refreshNearbyRooms();
+    console.log('All rooms in localStorage:', filteredRooms);
     
-    alert('Test room created! You should see it in the nearby rooms list.');
+    // Force refresh nearby rooms
+    discoverNearbyRooms();
+    
+    alert('Test room created! Check the nearby rooms list.');
 }
 
 function joinNearbyRoom(roomId) {
@@ -736,14 +773,17 @@ async function initializePeerConnection() {
         peerConnection.addTrack(track, localStream);
     });
     
-    // Handle remote stream
-    peerConnection.ontrack = (event) => {
-        console.log('Received remote stream:', event.streams[0]);
-        console.log('Remote stream tracks:', event.streams[0].getTracks());
-        
-        remoteStream = event.streams[0];
-        const remoteVideo = document.getElementById('remote-video');
-        remoteVideo.srcObject = remoteStream;
+        // Handle remote stream
+        peerConnection.ontrack = (event) => {
+            console.log('Received remote stream:', event.streams[0]);
+            console.log('Remote stream tracks:', event.streams[0].getTracks());
+            
+            remoteStream = event.streams[0];
+            const remoteVideo = document.getElementById('remote-video');
+            remoteVideo.srcObject = remoteStream;
+            
+            // Ensure audio is enabled for remote video
+            remoteVideo.muted = false;
         
         // Force video to play
         remoteVideo.onloadedmetadata = () => {

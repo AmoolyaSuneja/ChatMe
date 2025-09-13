@@ -1,0 +1,7 @@
+# Nixpacks configuration for Railway
+
+[phases.install]
+cmds = ["npm install"]
+
+[variables]
+NODE_VERSION = "18"

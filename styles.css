@@ -366,10 +366,12 @@ body::before {
     box-shadow: 
         0 20px 40px rgba(0, 0, 0, 0.3),
         0 0 0 1px rgba(255, 255, 255, 0.05);
-    height: 80vh;
+    height: 85vh;
     display: flex;
     flex-direction: column;
     position: relative;
+    max-width: 1000px;
+    margin: 0 auto;
 }
 
 .video-header {
@@ -452,8 +454,9 @@ body::before {
     flex: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
+    gap: 1rem;
     margin-bottom: 1.5rem;
+    min-height: 400px;
 }
 
 .video-wrapper {

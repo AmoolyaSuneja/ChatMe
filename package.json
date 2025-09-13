@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node simple-signaling-server.js",
     "dev": "node simple-signaling-server.js",
-    "build": "echo 'Static build - no build step needed'"
+    "build": "echo 'No build step required'",
+    "railway": "node simple-signaling-server.js"
   },
   "dependencies": {
     "ws": "^8.14.2",

@@ -93,6 +93,46 @@ const server = http.createServer((req, res) => {
         return;
     }
     
+    // Socket.IO connection test endpoint
+    if (req.url === '/socketio-test') {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Socket.IO Test</title>
+                <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+            </head>
+            <body>
+                <h1>Socket.IO Connection Test</h1>
+                <div id="status">Testing connection...</div>
+                <div id="log"></div>
+                <script>
+                    const socket = io();
+                    const status = document.getElementById('status');
+                    const log = document.getElementById('log');
+                    
+                    socket.on('connect', () => {
+                        status.innerHTML = '✅ Socket.IO Connected Successfully!';
+                        log.innerHTML += '<p>Connected to server</p>';
+                        socket.emit('join-room', { roomId: 'test', userId: 'test-user' });
+                    });
+                    
+                    socket.on('connect_error', (error) => {
+                        status.innerHTML = '❌ Socket.IO Connection Failed';
+                        log.innerHTML += '<p>Error: ' + error.message + '</p>';
+                    });
+                    
+                    socket.on('user-id', (data) => {
+                        log.innerHTML += '<p>Received user ID: ' + data.userId + '</p>';
+                    });
+                </script>
+            </body>
+            </html>
+        `);
+        return;
+    }
+    
     const extname = String(path.extname(filePath)).toLowerCase();
     const mimeTypes = {
         '.html': 'text/html',
@@ -222,4 +262,23 @@ server.listen(PORT, HOST, () => {
     console.log('Environment:', process.env.NODE_ENV || 'development');
     console.log('Railway deployment detected:', !!process.env.RAILWAY_ENVIRONMENT);
     console.log('Socket.IO server initialized successfully!');
+    console.log('Available endpoints:');
+    console.log('  - Main app: http://' + HOST + ':' + PORT + '/');
+    console.log('  - Test page: http://' + HOST + ':' + PORT + '/test');
+    console.log('  - Ping: http://' + HOST + ':' + PORT + '/ping');
+    console.log('  - Health: http://' + HOST + ':' + PORT + '/health');
+});
+
+// Handle server errors
+server.on('error', (error) => {
+    console.error('Server error:', error);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });

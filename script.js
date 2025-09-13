@@ -377,9 +377,11 @@ function displayNearbyRooms() {
     console.log('Displaying nearby rooms:', nearbyRooms.length);
     console.log('Nearby rooms data:', nearbyRooms);
     
+    // Always show the nearby rooms section if there are any rooms
     if (nearbyRooms.length === 0) {
-        nearbyRoomsDiv.style.display = 'none';
-        console.log('No nearby rooms found, hiding nearby rooms section');
+        nearbyRoomsDiv.style.display = 'block'; // Show section even with no rooms
+        roomsList.innerHTML = '<p style="text-align: center; color: #71717a; padding: 20px;">No nearby rooms found. Create a test room to see how it works!</p>';
+        console.log('No nearby rooms found, but showing section');
         return;
     }
     
@@ -418,19 +420,14 @@ function refreshNearbyRooms() {
 
 // Test function to create a sample room (for debugging)
 function createTestRoom() {
-    if (!userLocation) {
-        alert('Location is required to create a test room');
-        return;
-    }
-    
     const testRoom = {
-        id: 'TEST123',
-        name: 'Test Room',
-        radius: 50, // Large radius to ensure it shows up
+        id: 'TEST' + Math.random().toString(36).substring(2, 6).toUpperCase(),
+        name: 'Test Room - ' + new Date().toLocaleTimeString(),
+        radius: 100, // Large radius to ensure it shows up
         allowDiscovery: true,
-        location: {
-            latitude: userLocation.latitude + (Math.random() - 0.5) * 0.001, // Very close
-            longitude: userLocation.longitude + (Math.random() - 0.5) * 0.001
+        location: userLocation || {
+            latitude: 40.7128 + (Math.random() - 0.5) * 0.001, // Default to NYC area if no location
+            longitude: -74.0060 + (Math.random() - 0.5) * 0.001
         },
         createdAt: Date.now(),
         participants: [],
@@ -440,8 +437,8 @@ function createTestRoom() {
     // Add to localStorage
     const rooms = JSON.parse(localStorage.getItem('localChatRooms') || '[]');
     
-    // Remove existing test room if it exists
-    const filteredRooms = rooms.filter(room => room.id !== 'TEST123');
+    // Remove old test rooms
+    const filteredRooms = rooms.filter(room => !room.id.startsWith('TEST'));
     filteredRooms.push(testRoom);
     
     localStorage.setItem('localChatRooms', JSON.stringify(filteredRooms));
@@ -449,10 +446,12 @@ function createTestRoom() {
     console.log('Test room created:', testRoom);
     console.log('All rooms in localStorage:', filteredRooms);
     
-    // Force refresh nearby rooms
-    discoverNearbyRooms();
+    // Force refresh nearby rooms immediately
+    setTimeout(() => {
+        discoverNearbyRooms();
+    }, 100);
     
-    alert('Test room created! Check the nearby rooms list.');
+    alert('Test room created! It should appear in the nearby rooms list below.');
 }
 
 function joinNearbyRoom(roomId) {
